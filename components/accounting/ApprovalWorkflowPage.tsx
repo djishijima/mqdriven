@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import ApplicationList from '../ApplicationList.tsx';
 import ApplicationDetailModal from '../ApplicationDetailModal.tsx';
 import { getApplications, getApplicationCodes, approveApplication, rejectApplication } from '../../services/dataService.ts';
+import { normalizeFormCode } from '../../services/normalizeFormCode.ts';
 import { ApplicationWithDetails, ApplicationCode, EmployeeUser, Toast, Customer, AccountItem, Job, PurchaseOrder, Department, AllocationDivision } from '../../types.ts';
 import { Loader, AlertTriangle } from '../Icons.tsx';
 
@@ -167,9 +168,13 @@ const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser
     };
 
     const renderActiveForm = () => {
-        const activeApplicationCode = applicationCodes.find(c => c.code === formCode);
+        const effectiveFormCode = normalizeFormCode(formCode ?? '') ?? (formCode ? formCode.toUpperCase() : '');
+        const activeApplicationCode = applicationCodes.find(c => c.code === effectiveFormCode);
+        const displayFormCode = formCode ?? effectiveFormCode;
 
-        const formError = error || (!isCodesLoading && !activeApplicationCode) ? (error || `申請種別'${formCode}'の定義が見つかりません。`) : '';
+        const formError = error || (!isCodesLoading && !activeApplicationCode)
+            ? (error || `申請種別'${displayFormCode}'の定義が見つかりません。`)
+            : '';
         
         if (!currentUser) {
             return (
@@ -190,7 +195,7 @@ const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser
             error: formError,
         };
 
-        switch(formCode) {
+        switch(effectiveFormCode) {
             case 'EXP': return <ExpenseReimbursementForm {...formProps} customers={customers || []} accountItems={accountItems || []} jobs={jobs || []} purchaseOrders={purchaseOrders || []} departments={departments || []} allocationDivisions={allocationDivisions || []} />;
             case 'TRP': return <TransportExpenseForm {...formProps} accountItems={accountItems || []} allocationDivisions={allocationDivisions || []} />;
             case 'LEV': return <LeaveApplicationForm {...formProps} />;
@@ -201,7 +206,7 @@ const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser
                 <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm text-center">
                     <AlertTriangle className="w-12 h-12 text-red-500 mx-auto" aria-hidden="true" />
                     <h3 className="mt-4 text-lg font-bold">フォームが見つかりません</h3>
-                    <p className="mt-2 text-slate-600 dark:text-slate-400">申請フォーム '{formCode}' は存在しないか、正しく設定されていません。</p>
+                    <p className="mt-2 text-slate-600 dark:text-slate-400">申請フォーム '{displayFormCode}' は存在しないか、正しく設定されていません。</p>
                 </div>
             );
         }
