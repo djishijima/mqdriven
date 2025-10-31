@@ -1,20 +1,15 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "../App.tsx";
-import ErrorBoundary from "./ErrorBoundary";
+import "../public/index.css";
+import App from "../App";
 
-window.addEventListener("error",(e)=>{
-  console.error("GlobalError:",e.error||e);
-});
-window.addEventListener("unhandledrejection",(e)=>{
-  console.error("UnhandledRejection:", e.reason);
-});
+import ErrorBoundary from "./ErrorBoundary";
 
 ReactDOM.createRoot(document.getElementById("root")!)
   .render(
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
+    <React.StrictMode>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </React.StrictMode>
   );
-import "./index.css";
-import "../public/index.css";
