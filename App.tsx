@@ -262,6 +262,7 @@ const App: React.FC = () => {
     useEffect(() => {
         let isMounted = true;
         const credentialsConfigured = hasSupabaseCredentials();
+        const AUTH_TIMEOUT_MS = 8000;
 
         const activateDemoMode = async (message?: string) => {
             try {
@@ -278,6 +279,24 @@ const App: React.FC = () => {
             }
         };
 
+        const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+            return new Promise<T>((resolve, reject) => {
+                const timeoutId = window.setTimeout(() => {
+                    reject(new Error('Supabase auth request timed out'));
+                }, timeoutMs);
+
+                promise
+                    .then(result => {
+                        window.clearTimeout(timeoutId);
+                        resolve(result);
+                    })
+                    .catch(error => {
+                        window.clearTimeout(timeoutId);
+                        reject(error);
+                    });
+            });
+        };
+
         const initializeAuth = async () => {
             if (!credentialsConfigured) {
                 await activateDemoMode();
@@ -288,7 +307,7 @@ const App: React.FC = () => {
             }
 
             try {
-                const { data, error } = await supabase.auth.getSession();
+                const { data, error } = await withTimeout(supabase.auth.getSession(), AUTH_TIMEOUT_MS);
                 if (!isMounted) return;
 
                 if (error) {
