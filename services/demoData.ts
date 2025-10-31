@@ -234,7 +234,7 @@ export const createDemoDataState = (): DemoDataState => {
       createdAt: '2022-04-01T00:00:00Z',
       updatedAt: '2025-04-01T00:00:00Z',
     },
-    { id: 'acct-6001', code: '6001', name: '旅費交通費', categoryCode: 'EXP_TRAVEL', isActive: true, sortOrder: 10, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
+    { id: 'acct-6001', code: '6001', name: '旅費交通費', categoryCode: 'EXP_TRP', isActive: true, sortOrder: 10, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
     { id: 'acct-6002', code: '6002', name: '通信費', categoryCode: 'EXP_COMM', isActive: true, sortOrder: 20, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
     { id: 'acct-6003', code: '6003', name: '消耗品費', categoryCode: 'EXP_SUPPLIES', isActive: true, sortOrder: 30, createdAt: '2024-01-01', updatedAt: '2024-01-01' }
   ];
