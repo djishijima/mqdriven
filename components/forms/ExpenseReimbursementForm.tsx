@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { submitApplication } from '../../services/dataService.ts';
 import { extractInvoiceDetails } from '../../services/geminiService.ts';
 import ApprovalRouteSelector from './ApprovalRouteSelector.tsx';
@@ -70,7 +70,6 @@ const ExpenseReimbursementForm: React.FC<ExpenseReimbursementFormProps> = ({ onS
     const [isOcrLoading, setIsOcrLoading] = useState(false);
     const [error, setError] = useState('');
     const [validationErrors, setValidationErrors] = useState<Set<string>>(new Set());
-    const animationTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
     const isDisabled = isSubmitting || isLoading || !!formLoadError;
 
@@ -228,10 +227,7 @@ const ExpenseReimbursementForm: React.FC<ExpenseReimbursementFormProps> = ({ onS
         } catch (err) {
             setError(err instanceof Error ? err.message : '申請の提出に失敗しました。');
         } finally {
-            const mounted = animationTimeoutRef.current !== undefined;
-            if (mounted) {
-                setIsSubmitting(false);
-            }
+            setIsSubmitting(false);
         }
     };
     
