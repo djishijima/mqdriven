@@ -25,7 +25,7 @@ interface TransportDetail {
     amount: number;
 }
 
-const TRANSPORT_MODES = ['電車', 'バス', 'タクシー', '飛行機', 'その他'];
+const TRP_MODES = ['電車', 'バス', 'タクシー', '飛行機', 'その他'];
 
 const readFileAsBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -42,7 +42,7 @@ const TransportExpenseForm: React.FC<TransportExpenseFormProps> = ({ onSuccess, 
         travelDate: new Date().toISOString().split('T')[0],
         departure: '',
         arrival: '',
-        transportMode: TRANSPORT_MODES[0],
+        transportMode: TRP_MODES[0],
         amount: 0,
     }]);
     const [notes, setNotes] = useState('');
@@ -61,7 +61,7 @@ const TransportExpenseForm: React.FC<TransportExpenseFormProps> = ({ onSuccess, 
             travelDate: new Date().toISOString().split('T')[0],
             departure: '',
             arrival: '',
-            transportMode: TRANSPORT_MODES[0],
+            transportMode: TRP_MODES[0],
             amount: 0,
         }]);
     };
@@ -98,7 +98,7 @@ const TransportExpenseForm: React.FC<TransportExpenseFormProps> = ({ onSuccess, 
                 travelDate: ocrData.invoiceDate || new Date().toISOString().split('T')[0],
                 departure,
                 arrival,
-                transportMode: TRANSPORT_MODES[0],
+                transportMode: TRP_MODES[0],
                 amount: ocrData.totalAmount || 0,
             }]);
         } catch (err: any) {
@@ -254,7 +254,7 @@ const TransportExpenseForm: React.FC<TransportExpenseFormProps> = ({ onSuccess, 
                                         <td className="p-1 min-w-[150px]"><input type="text" id={`arrival-${item.id}`} placeholder="例: 幕張メッセ" value={item.arrival} onChange={e => handleDetailChange(item.id, 'arrival', e.target.value)} className={inputClass} disabled={isDisabled} aria-label="目的地" aria-required="true" required /></td>
                                         <td className="p-1 min-w-[120px]">
                                             <select id={`transportMode-${item.id}`} value={item.transportMode} onChange={e => handleDetailChange(item.id, 'transportMode', e.target.value)} className={inputClass} disabled={isDisabled} aria-label="交通手段" aria-required="true" required>
-                                                {TRANSPORT_MODES.map(mode => <option key={mode} value={mode}>{mode}</option>)}
+                                                {TRP_MODES.map(mode => <option key={mode} value={mode}>{mode}</option>)}
                                             </select>
                                         </td>
                                         <td className="p-1 min-w-[120px]"><input type="number" id={`amount-${item.id}`} value={item.amount} onChange={e => handleDetailChange(item.id, 'amount', Number(e.target.value))} className={`${inputClass} text-right`} disabled={isDisabled} aria-label="金額" aria-required="true" required min="1" /></td>

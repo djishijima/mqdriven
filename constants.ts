@@ -27,7 +27,7 @@ export const FIXED_COSTS = {
 };
 
 // ダッシュボード用の日次目標
-export const DAILY_GOALS = {
+export const DLY_GOALS = {
   grossMargin: 50000, // 限界利益
   operatingProfit: 25000, // 経常利益
   ordersValue: 150000, // 受注額
