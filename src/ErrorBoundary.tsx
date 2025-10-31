@@ -20,3 +20,16 @@ export default class ErrorBoundary extends React.Component<
     return this.props.children;
   }
 }
+if (typeof window !== 'undefined') {
+  window.addEventListener('unhandledrejection', (e) => {
+    console.error('UnhandledRejection', e.reason);
+    e.preventDefault?.();
+    const m = (e?.reason?.message)||'予期せぬエラーが発生しました';
+    try { window.dispatchEvent(new CustomEvent('app:toast',{detail:{type:'error',message:m}})); } catch {}
+  });
+  window.addEventListener('error', (e) => {
+    console.error('WindowError', e?.error||e?.message);
+    const m = (e?.error?.message)||e?.message||'エラー';
+    try { window.dispatchEvent(new CustomEvent('app:toast',{detail:{type:'error',message:m}})); } catch {}
+  });
+}

@@ -1,3 +1,4 @@
+import { GEMINI_API_KEY, IS_AI_DISABLED } from "../src/envShim";
 // FIX: Import LiveServerMessage and Blob for Live Chat functionality.
 import { GoogleGenAI, Type, GenerateContentResponse, Chat, Modality, FunctionDeclaration, LiveServerMessage, Blob } from "@google/genai";
 // FIX: Import MarketResearchReport type.
