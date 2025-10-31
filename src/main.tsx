@@ -16,3 +16,4 @@ ReactDOM.createRoot(document.getElementById("root")!)
       <App />
     </ErrorBoundary>
   );
+import "../public/index.css";
