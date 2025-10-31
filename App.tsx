@@ -48,6 +48,7 @@ import BugReportModal from './components/BugReportModal.tsx';
 
 
 import * as dataService from './services/dataService.ts';
+import { normalizeFormCode } from './services/normalizeFormCode.ts';
 import * as geminiService from './services/geminiService.ts';
 import { supabase, hasSupabaseCredentials } from './services/supabaseClient.ts';
 import { Session } from '@supabase/supabase-js';
@@ -572,10 +573,11 @@ const App: React.FC = () => {
             case 'approval_form_approval':
             case 'approval_form_daily':
             case 'approval_form_weekly':
-                const formCode = currentPage.split('_').pop()?.toUpperCase();
-                return <ApprovalWorkflowPage 
-                    view="form" 
-                    formCode={formCode} 
+                const rawFormCode = currentPage.split('_').pop() || '';
+                const formCode = normalizeFormCode(rawFormCode) ?? rawFormCode.toUpperCase();
+                return <ApprovalWorkflowPage
+                    view="form"
+                    formCode={formCode}
                     currentUser={currentUser} 
                     addToast={addToast}
                     isAIOff={isAIOff}
