@@ -7,7 +7,6 @@ import { ApplicationWithDetails, ApplicationCode, EmployeeUser, Toast, Customer,
 import { Loader, AlertTriangle } from '../Icons.tsx';
 
 // Form components
-// FIX: Change to default import for ExpenseReimbursementForm
 import ExpenseReimbursementForm from '../forms/ExpenseReimbursementForm.tsx';
 import TransportExpenseForm from '../forms/TransportExpenseForm.tsx';
 import LeaveApplicationForm from '../forms/LeaveApplicationForm.tsx';
@@ -168,9 +167,33 @@ const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser
     };
 
     const renderActiveForm = () => {
-        const effectiveFormCode = normalizeFormCode(formCode ?? '') ?? (formCode ? formCode.toUpperCase() : '');
-        const activeApplicationCode = applicationCodes.find(c => c.code === effectiveFormCode);
-        const displayFormCode = formCode ?? effectiveFormCode;
+        const rawFormCode = formCode ?? '';
+        const normalizedInput = normalizeFormCode(rawFormCode) ?? rawFormCode.toUpperCase();
+        const normalizedCompact = normalizedInput.replace(/[\s_-]+/g, '');
+
+        const matchesFormCode = (candidate?: string | null) => {
+            if (!candidate) return false;
+            const upper = candidate.toUpperCase();
+            const compact = upper.replace(/[\s_-]+/g, '');
+            const mapped = normalizeFormCode(candidate);
+            const mappedUpper = mapped?.toUpperCase();
+            const mappedCompact = mappedUpper?.replace(/[\s_-]+/g, '');
+            return (
+                upper === normalizedInput ||
+                compact === normalizedInput ||
+                upper === normalizedCompact ||
+                compact === normalizedCompact ||
+                (!!mappedUpper && (mappedUpper === normalizedInput || mappedUpper === normalizedCompact)) ||
+                (!!mappedCompact && (mappedCompact === normalizedInput || mappedCompact === normalizedCompact))
+            );
+        };
+
+        const activeApplicationCode = applicationCodes.find(code =>
+            matchesFormCode(code.code) || matchesFormCode(code.id) || matchesFormCode(code.name)
+        );
+
+        const effectiveFormCode = activeApplicationCode?.code ?? normalizedInput;
+        const displayFormCode = formCode ?? activeApplicationCode?.code ?? normalizedInput;
 
         const formError = error || (!isCodesLoading && !activeApplicationCode)
             ? (error || `申請種別'${displayFormCode}'の定義が見つかりません。`)
