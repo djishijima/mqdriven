@@ -279,7 +279,7 @@ const App: React.FC = () => {
             }
         };
 
-        const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+        const withTimeout =s*async <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
             return new Promise<T>((resolve, reject) => {
                 const timeoutId = window.setTimeout(() => {
                     reject(new Error('Supabase auth request timed out'));
