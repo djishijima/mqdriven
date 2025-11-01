@@ -19,7 +19,7 @@ BEGIN;
 -- RLS（行レベルセキュリティ）を無効化します。
 -- これにより、SupabaseのRLS再帰チェックに起因する致命的なエラーを防ぎます。
 -- これを最初に実行することが、すべての問題を解決する鍵となります。
-ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
+-- まずテーブルの存在を保証した上で、確実にRLSを無効化します。
 
 
 -- 1. 必要なテーブルを作成（存在しない場合のみ）
@@ -36,6 +36,9 @@ CREATE TABLE IF NOT EXISTS public.users (
 -- usersテーブルに権限カラムを追加 (存在しない場合のみ)
 -- デフォルトをtrueに変更し、既存ユーザーが機能を失わないようにする
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS can_use_anything_analysis BOOLEAN DEFAULT true;
+
+-- public.usersはアプリケーション内の参照専用テーブルのためRLSを無効化
+ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
 
 
 CREATE TABLE IF NOT EXISTS public.forms (
@@ -400,6 +403,16 @@ CREATE TABLE IF NOT EXISTS public.departments (
     name TEXT NOT NULL UNIQUE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE OR REPLACE VIEW public.v_departments AS
+SELECT
+    id,
+    name,
+    created_at
+FROM
+    public.departments
+ORDER BY
+    name;
 
 -- 4. 必須データを挿入
 -- 社長決裁ルート（重要：ステップが空でないこと）
