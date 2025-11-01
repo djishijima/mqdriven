@@ -1,7 +1,8 @@
 import { normalizeFormCode } from "./normalizeFormCode";
 import { v4 as uuidv4 } from 'uuid';
-import type { AuthUser } from '@supabase/supabase-js';
+import type { PostgrestError, User as SupabaseAuthUser } from '@supabase/supabase-js';
 import { createDemoDataState, DemoDataState } from './demoData.ts';
+import { supabase, hasSupabaseCredentials } from './supabaseClient.ts';
 import {
   EmployeeUser,
   Job,
@@ -50,7 +51,7 @@ import {
   ConfirmationDialogProps,
 } from '../types.ts';
 
-type MinimalAuthUser = Pick<AuthUser, 'id'> & {
+type MinimalAuthUser = Pick<SupabaseAuthUser, 'id'> & {
   email?: string | null;
   user_metadata?: { [key: string]: any; full_name?: string | null } | null;
 };
@@ -69,6 +70,164 @@ export const createDemoAuthUser = (): MinimalAuthUser => ({
 });
 
 const demoState: DemoDataState = createDemoDataState();
+
+type SupabaseUserRow = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  role: 'admin' | 'user' | null;
+  created_at: string;
+  can_use_anything_analysis: boolean | null;
+};
+
+type SupabaseEmployeeRow = {
+  id: string;
+  user_id: string | null;
+  name: string | null;
+  department: string | null;
+  title: string | null;
+  created_at: string;
+};
+
+type SupabaseEmployeeViewRow = {
+  user_id: string;
+  name: string | null;
+  department: string | null;
+  title: string | null;
+  email: string | null;
+  role: 'admin' | 'user' | null;
+  can_use_anything_analysis: boolean | null;
+  created_at: string | null;
+};
+
+const SUPABASE_VIEW_COLUMNS = 'user_id, name, department, title, email, role, can_use_anything_analysis, created_at';
+
+const mapViewRowToEmployeeUser = (row: SupabaseEmployeeViewRow): EmployeeUser => ({
+  id: row.user_id,
+  name: row.name ?? '',
+  department: row.department,
+  title: row.title,
+  email: row.email ?? '',
+  role: row.role === 'admin' ? 'admin' : 'user',
+  createdAt: row.created_at ?? new Date().toISOString(),
+  canUseAnythingAnalysis: row.can_use_anything_analysis ?? true,
+});
+
+const isUniqueViolation = (error?: PostgrestError | null): boolean => error?.code === '23505';
+
+const fetchSupabaseEmployeeUser = async (userId: string): Promise<EmployeeUser | null> => {
+  if (!hasSupabaseCredentials()) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from<SupabaseEmployeeViewRow>('v_employees_active')
+    .select(SUPABASE_VIEW_COLUMNS)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ? mapViewRowToEmployeeUser(data) : null;
+};
+
+const ensureSupabaseEmployeeUser = async (
+  authUser: MinimalAuthUser,
+  fallbackEmail: string
+): Promise<EmployeeUser | null> => {
+  if (!hasSupabaseCredentials()) {
+    return null;
+  }
+
+  const displayName =
+    authUser.user_metadata?.full_name?.trim() ||
+    authUser.user_metadata?.name?.trim?.() ||
+    fallbackEmail ||
+    'ゲストユーザー';
+
+  try {
+    const { data: userRow, error: userError } = await supabase
+      .from<SupabaseUserRow>('users')
+      .select('id, name, email, role, can_use_anything_analysis, created_at')
+      .eq('id', authUser.id)
+      .maybeSingle();
+
+    if (userError) {
+      throw userError;
+    }
+
+    let ensuredUser = userRow;
+
+    if (!ensuredUser) {
+      const { data: insertedUser, error: insertError } = await supabase
+        .from<SupabaseUserRow>('users')
+        .insert({
+          id: authUser.id,
+          name: displayName,
+          email: fallbackEmail || null,
+          role: 'user',
+          can_use_anything_analysis: true,
+        })
+        .select('id, name, email, role, can_use_anything_analysis, created_at')
+        .maybeSingle();
+
+      if (insertError && !isUniqueViolation(insertError)) {
+        throw insertError;
+      }
+
+      ensuredUser = insertedUser ?? userRow ?? null;
+    }
+
+    const { data: employeeRow, error: employeeError } = await supabase
+      .from<SupabaseEmployeeRow>('employees')
+      .select('id, user_id, name, department, title, created_at')
+      .eq('user_id', authUser.id)
+      .maybeSingle();
+
+    if (employeeError && !isUniqueViolation(employeeError)) {
+      throw employeeError;
+    }
+
+    if (!employeeRow) {
+      const { error: insertEmployeeError } = await supabase
+        .from('employees')
+        .insert({
+          user_id: authUser.id,
+          name: displayName,
+        });
+
+      if (insertEmployeeError && !isUniqueViolation(insertEmployeeError)) {
+        throw insertEmployeeError;
+      }
+    }
+
+    const viewUser = await fetchSupabaseEmployeeUser(authUser.id);
+    if (viewUser) {
+      return viewUser;
+    }
+
+    if (ensuredUser) {
+      return {
+        id: ensuredUser.id,
+        name: ensuredUser.name ?? displayName,
+        department: employeeRow?.department ?? null,
+        title: employeeRow?.title ?? null,
+        email: ensuredUser.email ?? fallbackEmail ?? '',
+        role: ensuredUser.role === 'admin' ? 'admin' : 'user',
+        createdAt: employeeRow?.created_at ?? ensuredUser.created_at ?? new Date().toISOString(),
+        canUseAnythingAnalysis: ensuredUser.can_use_anything_analysis ?? true,
+      };
+    }
+  } catch (error) {
+    if (!isSupabaseUnavailableError(error)) {
+      throw error;
+    }
+  }
+
+  return null;
+};
 
 let projects: Project[] = [
   {
@@ -174,6 +333,14 @@ export const isSupabaseUnavailableError = (error: any): boolean => {
 
 export const resolveUserSession = async (authUser: MinimalAuthUser): Promise<EmployeeUser> => {
   const fallbackEmail = authUser.email ?? '';
+
+  if (hasSupabaseCredentials()) {
+    const supabaseUser = await ensureSupabaseEmployeeUser(authUser, fallbackEmail);
+    if (supabaseUser) {
+      return supabaseUser;
+    }
+  }
+
   const existing = demoState.employeeUsers.find(user => user.id === authUser.id || (!!fallbackEmail && user.email === fallbackEmail));
   if (existing) {
     return deepClone(existing);
@@ -204,7 +371,22 @@ export const resolveUserSession = async (authUser: MinimalAuthUser): Promise<Emp
   return deepClone(newUser);
 };
 
-export const getUsers = async (): Promise<EmployeeUser[]> => deepClone(demoState.employeeUsers);
+export const getUsers = async (): Promise<EmployeeUser[]> => {
+  if (hasSupabaseCredentials()) {
+    const { data, error } = await supabase
+      .from<SupabaseEmployeeViewRow>('v_employees_active')
+      .select(SUPABASE_VIEW_COLUMNS)
+      .order('name', { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? []).map(mapViewRowToEmployeeUser);
+  }
+
+  return deepClone(demoState.employeeUsers);
+};
 
 export const addUser = async (input: {
   name: string;
@@ -214,6 +396,10 @@ export const addUser = async (input: {
   department?: string | null;
   title?: string | null;
 }): Promise<EmployeeUser> => {
+  if (hasSupabaseCredentials()) {
+    throw new Error('Supabase環境ではアプリからのユーザー新規追加はサポートされていません。Supabase Authから招待を行ってください。');
+  }
+
   const now = new Date().toISOString();
   const newUser: EmployeeUser = {
     id: uuidv4(),
@@ -225,7 +411,7 @@ export const addUser = async (input: {
     createdAt: now,
     canUseAnythingAnalysis: input.canUseAnythingAnalysis ?? true,
   };
-  
+
   demoState.employeeUsers.push(newUser);
   demoState.employees.push({
     id: uuidv4(),
@@ -241,9 +427,84 @@ export const addUser = async (input: {
 };
 
 export const updateUser = async (id: string, updates: Partial<EmployeeUser>): Promise<EmployeeUser> => {
+  if (hasSupabaseCredentials()) {
+    const userUpdates: Partial<SupabaseUserRow> = {};
+    if (Object.prototype.hasOwnProperty.call(updates, 'name')) {
+      userUpdates.name = updates.name ?? null;
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'email')) {
+      userUpdates.email = updates.email ?? null;
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'role') && updates.role) {
+      userUpdates.role = updates.role;
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'canUseAnythingAnalysis')) {
+      userUpdates.can_use_anything_analysis = updates.canUseAnythingAnalysis ?? null;
+    }
+
+    if (Object.keys(userUpdates).length > 0) {
+      const { error: userError } = await supabase
+        .from('users')
+        .update(userUpdates)
+        .eq('id', id);
+
+      if (userError) {
+        throw userError;
+      }
+    }
+
+    const employeeUpdates: Partial<SupabaseEmployeeRow> = {};
+    if (Object.prototype.hasOwnProperty.call(updates, 'name')) {
+      employeeUpdates.name = updates.name ?? null;
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'department')) {
+      employeeUpdates.department = updates.department ?? null;
+    }
+    if (Object.prototype.hasOwnProperty.call(updates, 'title')) {
+      employeeUpdates.title = updates.title ?? null;
+    }
+
+    if (Object.keys(employeeUpdates).length > 0) {
+      const { data: employeeRow, error: employeeSelectError } = await supabase
+        .from<SupabaseEmployeeRow>('employees')
+        .select('id')
+        .eq('user_id', id)
+        .maybeSingle();
+
+      if (employeeSelectError && !isSupabaseUnavailableError(employeeSelectError)) {
+        throw employeeSelectError;
+      }
+
+      if (employeeRow) {
+        const { error: employeeUpdateError } = await supabase
+          .from('employees')
+          .update(employeeUpdates)
+          .eq('id', employeeRow.id);
+
+        if (employeeUpdateError) {
+          throw employeeUpdateError;
+        }
+      } else {
+        const { error: employeeInsertError } = await supabase
+          .from('employees')
+          .insert({ user_id: id, ...employeeUpdates });
+
+        if (employeeInsertError && !isUniqueViolation(employeeInsertError)) {
+          throw employeeInsertError;
+        }
+      }
+    }
+
+    const refreshed = await fetchSupabaseEmployeeUser(id);
+    if (!refreshed) {
+      throw new Error('ユーザー情報の再取得に失敗しました。');
+    }
+    return refreshed;
+  }
+
   const target = findById(demoState.employeeUsers, id, 'ユーザー');
   Object.assign(target, updates);
-  
+
   const employee = demoState.employees.find(emp => emp.name === target.name);
   if (employee) {
     employee.department = updates.department ?? employee.department;
@@ -253,6 +514,19 @@ export const updateUser = async (id: string, updates: Partial<EmployeeUser>): Pr
 };
 
 export const deleteUser = async (id: string): Promise<void> => {
+  if (hasSupabaseCredentials()) {
+    const { error: employeeError } = await supabase
+      .from('employees')
+      .update({ active: false })
+      .eq('user_id', id);
+
+    if (employeeError) {
+      throw employeeError;
+    }
+
+    return;
+  }
+
   const removed = demoState.employeeUsers.find(user => user.id === id);
   demoState.employeeUsers = demoState.employeeUsers.filter(user => user.id !== id);
   if (removed) {
