@@ -498,6 +498,7 @@ DROP POLICY IF EXISTS "Allow all access for authenticated users" ON public.analy
 -- 権限付与
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT SELECT ON public.v_departments TO anon, authenticated;
+GRANT SELECT ON public.v_employees_active TO authenticated;
 
 -- 参照用テーブルにSELECT権限を付与
 CREATE POLICY "Allow authenticated read access" ON public.forms FOR SELECT TO authenticated USING (true);
