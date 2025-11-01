@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ApplicationList from '../ApplicationList.tsx';
 import ApplicationDetailModal from '../ApplicationDetailModal.tsx';
-import { getApplications, getApplicationCodes, approveApplication, rejectApplication } from '../../services/dataService.ts';
+import { getApplications, getApplicationCodes, approveApplication, rejectApplication, resolveUserSession } from '../../services/dataService.ts';
 import { normalizeFormCode } from '../../services/normalizeFormCode.ts';
 import { ApplicationWithDetails, ApplicationCode, EmployeeUser, Toast, Customer, AccountItem, Job, PurchaseOrder, Department, AllocationDivision } from '../../types.ts';
 import { Loader, AlertTriangle } from '../Icons.tsx';
+import { hasSupabaseCredentials, supabase } from '../../services/supabaseClient.ts';
 
 // Form components
 import ExpenseReimbursementForm from '../forms/ExpenseReimbursementForm.tsx';
@@ -49,13 +50,69 @@ const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser
     // State for form view
     const [applicationCodes, setApplicationCodes] = useState<ApplicationCode[]>([]);
     const [isCodesLoading, setIsCodesLoading] = useState(true);
+    const [resolvedUser, setResolvedUser] = useState<EmployeeUser | null>(currentUser);
+    const [isUserLoading, setIsUserLoading] = useState(!currentUser && hasSupabaseCredentials());
+
+    useEffect(() => {
+        let isMounted = true;
+
+        if (currentUser) {
+            setResolvedUser(currentUser);
+            setIsUserLoading(false);
+            return () => {
+                isMounted = false;
+            };
+        }
+
+        if (!hasSupabaseCredentials()) {
+            setResolvedUser(null);
+            setIsUserLoading(false);
+            return () => {
+                isMounted = false;
+            };
+        }
+
+        const fetchUser = async () => {
+            setIsUserLoading(true);
+            try {
+                const { data, error } = await supabase.auth.getSession();
+                if (!isMounted) return;
+                if (error || !data.session?.user) {
+                    setResolvedUser(null);
+                    return;
+                }
+
+                const user = await resolveUserSession(data.session.user);
+                if (!isMounted) return;
+                setResolvedUser(user);
+            } catch (err) {
+                console.error('Failed to resolve current user for ApprovalWorkflowPage', err);
+                if (isMounted) {
+                    setResolvedUser(null);
+                }
+            } finally {
+                if (isMounted) {
+                    setIsUserLoading(false);
+                }
+            }
+        };
+
+        fetchUser();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [currentUser]);
+
+    const effectiveUser = currentUser ?? resolvedUser;
+    const effectiveUserId = effectiveUser?.id;
 
     const fetchListData = async () => {
-        if (!currentUser) return;
+        if (!effectiveUser) return;
         try {
             setIsLoading(true);
             setError('');
-            const apps = await getApplications(currentUser);
+            const apps = await getApplications(effectiveUser);
             setApplications(apps);
         } catch (err: any) {
             setError(err.message || '申請データの取得に失敗しました。');
@@ -78,12 +135,12 @@ const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser
     };
 
     useEffect(() => {
-        if (view === 'list' && currentUser) {
+        if (view === 'list' && effectiveUser) {
             fetchListData();
         } else if (view === 'form') {
             fetchFormData();
         }
-    }, [view, currentUser]);
+    }, [view, effectiveUserId]);
 
     // List View Logic
     const handleSelectApplication = (app: ApplicationWithDetails) => {
@@ -97,9 +154,9 @@ const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser
     };
 
     const handleApprove = async (application: ApplicationWithDetails) => {
-        if (!currentUser) return;
+        if (!effectiveUser) return;
         try {
-            await approveApplication(application, currentUser as any);
+            await approveApplication(application, effectiveUser as any);
             addToast('申請を承認しました。', 'success');
             handleModalClose();
             await fetchListData(); // Refresh list after action
@@ -110,9 +167,9 @@ const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser
     };
 
     const handleReject = async (application: ApplicationWithDetails, reason: string) => {
-        if (!currentUser) return;
+        if (!effectiveUser) return;
         try {
-            await rejectApplication(application, reason, currentUser as any);
+            await rejectApplication(application, reason, effectiveUser as any);
             addToast('申請を差し戻しました。', 'success');
             handleModalClose();
             await fetchListData(); // Refresh list after action
@@ -123,8 +180,8 @@ const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser
     };
     
     const { displayedApplications, tabCounts } = useMemo(() => {
-        const pendingApps = applications.filter(app => app.approverId === currentUser?.id && app.status === 'pending_approval');
-        const submittedApps = applications.filter(app => app.applicantId === currentUser?.id);
+        const pendingApps = applications.filter(app => app.approverId === effectiveUserId && app.status === 'pending_approval');
+        const submittedApps = applications.filter(app => app.applicantId === effectiveUserId);
         const completedApps = applications.filter(app => app.status === 'approved' || app.status === 'rejected');
 
         const counts = {
@@ -157,7 +214,7 @@ const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser
             );
         }
         return { displayedApplications: filteredByTab, tabCounts: counts };
-    }, [applications, activeTab, searchTerm, currentUser]);
+    }, [applications, activeTab, searchTerm, effectiveUserId]);
 
 
     // Form View Logic
@@ -199,7 +256,16 @@ const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser
             ? (error || `申請種別'${displayFormCode}'の定義が見つかりません。`)
             : '';
         
-        if (!currentUser) {
+        if (isUserLoading) {
+            return (
+                <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm text-center">
+                    <Loader className="w-8 h-8 mx-auto animate-spin" aria-hidden="true" />
+                    <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">ユーザー情報を読み込み中です…</p>
+                </div>
+            );
+        }
+
+        if (!effectiveUser) {
             return (
                 <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md" role="alert">
                     <p className="font-bold">致命的なエラー</p>
@@ -211,7 +277,7 @@ const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser
         const formProps = {
             onSuccess: handleFormSuccess,
             applicationCodeId: activeApplicationCode?.id || '',
-            currentUser: currentUser as any,
+            currentUser: effectiveUser as any,
             addToast: addToast,
             isAIOff: isAIOff,
             isLoading: isCodesLoading,
@@ -305,7 +371,7 @@ const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser
                 {isDetailModalOpen && (
                     <ApplicationDetailModal
                         application={selectedApplication}
-                        currentUser={currentUser}
+                        currentUser={effectiveUser}
                         onApprove={handleApprove}
                         onReject={handleReject}
                         onClose={handleModalClose}
