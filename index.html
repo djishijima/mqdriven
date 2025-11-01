@@ -5,6 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>MQ3</title>
     <link rel="stylesheet" href="./index.css" />
+    <script>
+      const tw = globalThis.tailwind ?? {};
+      tw.config = {
+        darkMode: 'class',
+        corePlugins: {
+          preflight: false,
+        },
+      };
+      globalThis.tailwind = tw;
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
   </head>
   <body>
     <div id="root"></div>
