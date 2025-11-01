@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node ./scripts/build-with-esbuild.mjs",
     "preview": "vite preview --host 0.0.0.0 --strictPort --port 8080",
     "start": "vite preview --host 0.0.0.0 --strictPort --port ${PORT:-8080}"
   },
