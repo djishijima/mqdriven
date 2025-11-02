@@ -140,7 +140,7 @@ const ensureSupabaseEmployeeUser = async (
   fallbackEmail: string
 ): Promise<EmployeeUser | null> => {
   if (!hasSupabaseCredentials()) {
-    return null;
+    throw new Error('Supabaseの認証情報が設定されていません。');
   }
 
   const supabaseClient = getSupabase();
@@ -225,9 +225,12 @@ const ensureSupabaseEmployeeUser = async (
       };
     }
   } catch (error) {
-    if (!isSupabaseUnavailableError(error)) {
-      throw error;
+    if (isSupabaseUnavailableError(error)) {
+      const wrappedError = new Error('Supabaseへの接続に失敗しました。ネットワークまたはSupabaseの設定を確認してください。');
+      (wrappedError as any).cause = error;
+      throw wrappedError;
     }
+    throw error;
   }
 
   return null;
@@ -338,41 +341,16 @@ export const isSupabaseUnavailableError = (error: any): boolean => {
 export const resolveUserSession = async (authUser: MinimalAuthUser): Promise<EmployeeUser> => {
   const fallbackEmail = authUser.email ?? '';
 
-  if (hasSupabaseCredentials()) {
-    const supabaseUser = await ensureSupabaseEmployeeUser(authUser, fallbackEmail);
-    if (supabaseUser) {
-      return supabaseUser;
-    }
+  if (!hasSupabaseCredentials()) {
+    throw new Error('Supabaseの認証情報が設定されていません。');
   }
 
-  const existing = demoState.employeeUsers.find(user => user.id === authUser.id || (!!fallbackEmail && user.email === fallbackEmail));
-  if (existing) {
-    return deepClone(existing);
+  const supabaseUser = await ensureSupabaseEmployeeUser(authUser, fallbackEmail);
+  if (supabaseUser) {
+    return supabaseUser;
   }
 
-  const newUser: EmployeeUser = {
-    id: authUser.id,
-    name: authUser.user_metadata?.full_name || fallbackEmail || 'ゲストユーザー',
-    email: fallbackEmail || `${uuidv4()}@example.com`,
-    department: null,
-    title: null,
-    role: 'user',
-    createdAt: new Date().toISOString(),
-    canUseAnythingAnalysis: true,
-  };
-
-  demoState.employeeUsers.push(newUser);
-  demoState.employees.push({
-    id: uuidv4(),
-    name: newUser.name,
-    department: newUser.department ?? '',
-    title: newUser.title ?? '',
-    hireDate: new Date().toISOString(),
-    salary: 0,
-    createdAt: new Date().toISOString(),
-  });
-
-  return deepClone(newUser);
+  throw new Error('Supabase上にユーザー情報が見つかりません。管理者にお問い合わせください。');
 };
 
 export const getUsers = async (): Promise<EmployeeUser[]> => {

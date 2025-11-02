@@ -154,7 +154,6 @@ const GlobalErrorBanner: React.FC<{ error: string; onRetry: () => void; onShowSe
 const App: React.FC = () => {
     const [session, setSession] = useState<Session | null>(null);
     const [authLoading, setAuthLoading] = useState(true);
-    const [isDemoMode, setIsDemoMode] = useState(false);
 
     const [currentPage, setCurrentPage] = useState<Page>('analysis_dashboard');
     const [currentUser, setCurrentUser] = useState<EmployeeUser | null>(null);
@@ -280,27 +279,21 @@ const App: React.FC = () => {
         const credentialsConfigured = hasSupabaseCredentials();
         const AUTH_TIMEOUT_MS = 8000;
 
-        const activateDemoMode = async (message?: string) => {
-            try {
-                const demoUser = await dataService.resolveUserSession(dataService.createDemoAuthUser());
-                if (!isMounted) return;
-                setSession(null);
-                setCurrentUser(demoUser);
-                setIsDemoMode(true);
-                if (message) {
-                    setError(prev => prev ?? message);
-                }
-            } catch (demoError) {
-                console.error('Failed to initialize demo mode:', demoError);
+        const handleAuthFailure = (message: string, cause?: unknown) => {
+            console.error('Supabase auth initialization failed:', cause);
+            if (!isMounted) {
+                return;
             }
+            setSession(null);
+            setCurrentUser(null);
+            setError((prev) => prev ?? message);
+            setShowSetupModal(true);
         };
 
         const initializeAuth = async () => {
             if (!credentialsConfigured) {
-                await activateDemoMode();
-                if (isMounted) {
-                    setAuthLoading(false);
-                }
+                handleAuthFailure('Supabaseの認証情報が設定されていません。supabaseCredentials.ts または環境変数を確認してください。');
+                setAuthLoading(false);
                 return;
             }
 
@@ -320,13 +313,16 @@ const App: React.FC = () => {
                     const resolvedUser = await dataService.resolveUserSession(sessionData.user);
                     if (!isMounted) return;
                     setCurrentUser(resolvedUser);
-                    setIsDemoMode(false);
+                    setError(null);
+                    setShowSetupModal(false);
                 } else {
                     setCurrentUser(null);
                 }
-            } catch (authError) {
-                console.error('Supabase auth initialization failed:', authError);
-                await activateDemoMode('Supabase 認証に接続できません。デモモードで起動しました。');
+            } catch (authError: any) {
+                const message = dataService.isSupabaseUnavailableError(authError)
+                    ? 'Supabase 認証に接続できません。ネットワークまたは設定を確認してください。'
+                    : 'ログイン状態の確認に失敗しました。再度ログインしてください。';
+                handleAuthFailure(message, authError);
             } finally {
                 if (isMounted) {
                     setAuthLoading(false);
@@ -351,9 +347,18 @@ const App: React.FC = () => {
                     .then(user => {
                         if (!isMounted) return;
                         setCurrentUser(user);
-                        setIsDemoMode(false);
+                        setError(null);
+                        setShowSetupModal(false);
                     })
-                    .catch(err => console.error('Failed to resolve user session:', err));
+                    .catch(err => {
+                        if (!isMounted) return;
+                        const message = dataService.isSupabaseUnavailableError(err)
+                            ? 'Supabase からユーザー情報を取得できません。ネットワークを確認してください。'
+                            : 'ユーザー情報の取得に失敗しました。再度ログインしてください。';
+                        setError((prev) => prev ?? message);
+                        setShowSetupModal(true);
+                        setCurrentUser(null);
+                    });
             } else {
                 setCurrentUser(null);
             }
@@ -366,23 +371,23 @@ const App: React.FC = () => {
     }, []);
     
     useEffect(() => {
-      if (session || (isDemoMode && currentUser)) {
+      if (session && currentUser) {
         fetchData();
       } else if (!authLoading) {
         setIsLoading(false);
       }
-    }, [fetchData, session, isDemoMode, currentUser, authLoading]);
+    }, [fetchData, session, currentUser, authLoading]);
 
     const handleSignOut = useCallback(async () => {
-        if (isDemoMode || !hasSupabaseCredentials()) {
-            addToast('デモモードではサインアウトは利用できません。', 'info');
+        if (!hasSupabaseCredentials()) {
+            addToast('Supabaseの設定が見つかりません。', 'info');
             return;
         }
         const supabaseClient = getSupabase();
         await supabaseClient.auth.signOut();
         setCurrentUser(null);
         setSession(null);
-    }, [addToast, isDemoMode]);
+    }, [addToast]);
 
     // ... (rest of the component remains the same)
 
@@ -658,7 +663,7 @@ const App: React.FC = () => {
         return <div className="flex h-screen items-center justify-center"><Loader className="w-12 h-12 animate-spin" /></div>;
     }
     
-    if (!session && !isDemoMode) {
+    if (!session) {
         return <LoginPage />;
     }
 
