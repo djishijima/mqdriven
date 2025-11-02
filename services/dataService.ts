@@ -195,11 +195,16 @@ const ensureSupabaseEmployeeUser = async (
     }
 
     if (!employeeRow) {
+      const today = new Date().toISOString().slice(0, 10);
       const { error: insertEmployeeError } = await supabaseClient
         .from('employees')
         .insert({
           user_id: authUser.id,
           name: displayName,
+          department: null,
+          title: null,
+          hire_date: today,
+          salary: 0,
         });
 
       if (insertEmployeeError && !isUniqueViolation(insertEmployeeError)) {

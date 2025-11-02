@@ -12,7 +12,7 @@ const NEXT_PUBLIC_AI_OFF = getEnvValue('NEXT_PUBLIC_AI_OFF') === '1';
 const API_KEY = getEnvValue('API_KEY') ?? getEnvValue('GEMINI_API_KEY');
 
 if (!API_KEY && !NEXT_PUBLIC_AI_OFF) {
-  console.error("API_KEY environment variable not set. AI functions might be unavailable.");
+  console.warn("API_KEY environment variable not set. AI functions might be unavailable.");
 }
 
 const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
