@@ -95,6 +95,40 @@ CREATE TABLE IF NOT EXISTS public.employees (
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
+-- 旧バージョンからの移行で発生するビュー列リネームエラーに対応
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.views
+        WHERE table_schema = 'public'
+          AND table_name = 'v_employees_active'
+    ) THEN
+        IF EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'v_employees_active'
+              AND column_name = 'role'
+        )
+        AND NOT EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'v_employees_active'
+              AND column_name = 'email'
+        ) THEN
+            EXECUTE 'ALTER VIEW public.v_employees_active RENAME COLUMN role TO email';
+        END IF;
+    END IF;
+EXCEPTION
+    WHEN duplicate_column THEN
+        NULL;
+    WHEN undefined_column THEN
+        NULL;
+END
+$$;
+
 -- v_employees_active ビューを修正
 CREATE OR REPLACE VIEW public.v_employees_active AS
 SELECT
