@@ -38,6 +38,8 @@ const TABS_CONFIG = {
     completed: { title: "完了済", description: "承認または却下されたすべての申請の履歴です。" },
 };
 
+const USER_LOAD_ERROR_CODE = 'APPROVAL-USER-LOAD-001';
+
 const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser, view, formCode, searchTerm, addToast, customers, accountItems, jobs, purchaseOrders, departments, isAIOff, allocationDivisions, onSuccess, onRefreshData }) => {
     // State for list view
     const [applications, setApplications] = useState<ApplicationWithDetails[]>([]);
@@ -52,6 +54,7 @@ const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser
     const [isCodesLoading, setIsCodesLoading] = useState(true);
     const [resolvedUser, setResolvedUser] = useState<EmployeeUser | null>(currentUser);
     const [isUserLoading, setIsUserLoading] = useState(!currentUser && hasSupabaseCredentials());
+    const [hasNotifiedUserError, setHasNotifiedUserError] = useState(false);
 
     useEffect(() => {
         let isMounted = true;
@@ -107,6 +110,20 @@ const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser
 
     const effectiveUser = currentUser ?? resolvedUser;
     const effectiveUserId = effectiveUser?.id;
+
+    useEffect(() => {
+        if (!isUserLoading && !effectiveUser) {
+            if (!hasNotifiedUserError) {
+                addToast(
+                    `[${USER_LOAD_ERROR_CODE}] ユーザー情報が読み込めませんでした。再ログインしてください。`,
+                    'error'
+                );
+                setHasNotifiedUserError(true);
+            }
+        } else if (hasNotifiedUserError) {
+            setHasNotifiedUserError(false);
+        }
+    }, [isUserLoading, effectiveUser, addToast, hasNotifiedUserError]);
 
     const fetchListData = async () => {
         if (!effectiveUser) return;
@@ -270,7 +287,8 @@ const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser
             return (
                 <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md" role="alert">
                     <p className="font-bold">致命的なエラー</p>
-                    <p>ユーザー情報が読み込めませんでした。再ログインしてください。</p>
+                    <p className="mt-1">エラーコード: <span className="font-mono">{USER_LOAD_ERROR_CODE}</span></p>
+                    <p className="mt-1">ユーザー情報が読み込めませんでした。再ログインしてください。</p>
                 </div>
             );
         }
