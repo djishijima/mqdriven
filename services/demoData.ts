@@ -67,6 +67,7 @@ export const createDemoDataState = (): DemoDataState => {
       id: 'job-001',
       jobNumber: 20241001,
       clientName: '株式会社ネオプリント',
+      customerId: 'cus-001',
       title: '秋季キャンペーンチラシ',
       status: JobStatus.InProgress,
       dueDate: '2025-11-05',
@@ -88,6 +89,7 @@ export const createDemoDataState = (): DemoDataState => {
       id: 'job-002',
       jobNumber: 20240921,
       clientName: '有限会社ブルースタジオ',
+      customerId: 'cus-002',
       title: '会社案内パンフレット改訂',
       status: JobStatus.Pending,
       dueDate: '2025-10-30',
@@ -109,6 +111,7 @@ export const createDemoDataState = (): DemoDataState => {
       id: 'job-003',
       jobNumber: 20240818,
       clientName: '株式会社リンクス',
+      customerId: 'cus-003',
       title: '商品カタログ2025',
       status: JobStatus.Completed,
       dueDate: '2025-09-10',
@@ -131,6 +134,7 @@ export const createDemoDataState = (): DemoDataState => {
   const customers: Customer[] = [
     {
       id: 'cus-001',
+      customerCode: 'C001',
       customerName: '株式会社ネオプリント',
       representative: '山田 太郎',
       phoneNumber: '03-1234-5678',
@@ -143,9 +147,11 @@ export const createDemoDataState = (): DemoDataState => {
       salesType: '直取引',
       creditLimit: '500万円',
       customerContactInfo: 'sales@neoprint.jp',
+      isActive: true,
     },
     {
       id: 'cus-002',
+      customerCode: 'C002',
       customerName: '有限会社ブルースタジオ',
       representative: '佐藤 花子',
       phoneNumber: '06-2345-6789',
@@ -158,9 +164,11 @@ export const createDemoDataState = (): DemoDataState => {
       salesType: '紹介',
       creditLimit: '200万円',
       customerContactInfo: 'info@bluestudio.jp',
+      isActive: true,
     },
     {
       id: 'cus-003',
+      customerCode: 'C003',
       customerName: '株式会社リンクス',
       representative: '田中 実',
       phoneNumber: '052-345-6789',
@@ -173,6 +181,7 @@ export const createDemoDataState = (): DemoDataState => {
       salesType: '直取引',
       creditLimit: '800万円',
       customerContactInfo: 'procurement@lynx.co.jp',
+      isActive: true,
     },
   ];
 
@@ -213,6 +222,7 @@ export const createDemoDataState = (): DemoDataState => {
       sortOrder: 1,
       createdAt: '2022-04-01T00:00:00Z',
       updatedAt: '2025-04-01T00:00:00Z',
+      mqCode: { p: 'P-5001', v: 'V-0000', m: 'M-0000', q: 'Q-5001', f: 'F-0000', g: 'G-1000' },
     },
     {
       id: 'acct-002',
@@ -223,6 +233,7 @@ export const createDemoDataState = (): DemoDataState => {
       sortOrder: 2,
       createdAt: '2022-04-01T00:00:00Z',
       updatedAt: '2025-04-01T00:00:00Z',
+      mqCode: { p: 'P-5201', v: 'V-5201', m: 'M-0520', q: 'Q-5201', f: 'F-0000', g: 'G-2000' },
     },
     {
       id: 'acct-003',
@@ -233,10 +244,11 @@ export const createDemoDataState = (): DemoDataState => {
       sortOrder: 3,
       createdAt: '2022-04-01T00:00:00Z',
       updatedAt: '2025-04-01T00:00:00Z',
+      mqCode: { p: 'P-6101', v: 'V-0000', m: 'M-0610', q: 'Q-6101', f: 'F-6101', g: 'G-3000' },
     },
-    { id: 'acct-6001', code: '6001', name: '旅費交通費', categoryCode: 'EXP_TRP', isActive: true, sortOrder: 10, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-    { id: 'acct-6002', code: '6002', name: '通信費', categoryCode: 'EXP_COMM', isActive: true, sortOrder: 20, createdAt: '2024-01-01', updatedAt: '2024-01-01' },
-    { id: 'acct-6003', code: '6003', name: '消耗品費', categoryCode: 'EXP_SUPPLIES', isActive: true, sortOrder: 30, createdAt: '2024-01-01', updatedAt: '2024-01-01' }
+    { id: 'acct-6001', code: '6001', name: '旅費交通費', categoryCode: 'EXP_TRP', isActive: true, sortOrder: 10, createdAt: '2024-01-01', updatedAt: '2024-01-01', mqCode: { p: 'P-6001', v: 'V-6001', m: 'M-6001', q: 'Q-TRP', f: 'F-0500', g: 'G-4100' } },
+    { id: 'acct-6002', code: '6002', name: '通信費', categoryCode: 'EXP_COMM', isActive: true, sortOrder: 20, createdAt: '2024-01-01', updatedAt: '2024-01-01', mqCode: { p: 'P-6002', v: 'V-6002', m: 'M-6002', q: 'Q-COMM', f: 'F-0500', g: 'G-4200' } },
+    { id: 'acct-6003', code: '6003', name: '消耗品費', categoryCode: 'EXP_SUPPLIES', isActive: true, sortOrder: 30, createdAt: '2024-01-01', updatedAt: '2024-01-01', mqCode: { p: 'P-6003', v: 'V-6003', m: 'M-6003', q: 'Q-SUP', f: 'F-0600', g: 'G-4300' } }
   ];
 
   const leads: Lead[] = [
@@ -539,8 +551,55 @@ export const createDemoDataState = (): DemoDataState => {
   const estimates: Estimate[] = [];
   const invoices: Invoice[] = [];
   const inboxItems: InboxItem[] = [];
-  const departments: Department[] = [];
-  const paymentRecipients: PaymentRecipient[] = [];
+  const departments: Department[] = [
+    { id: 'dep-sales', name: '営業部' },
+    { id: 'dep-production', name: '製造部' },
+    { id: 'dep-admin', name: '管理部' },
+  ];
+  const paymentRecipients: PaymentRecipient[] = [
+    {
+      id: 'pay-001',
+      recipientCode: 'V001',
+      companyName: '株式会社アーク商事',
+      recipientName: '経理部',
+      bankName: '三菱UFJ銀行',
+      bankBranch: '新橋支店',
+      bankAccountNumber: '普通 1234567',
+      isActive: true,
+      allocationTargets: [
+        { id: 'pay-001-hq', name: '本社 経理課' },
+        { id: 'pay-001-sales', name: '営業サポートチーム' },
+      ],
+    },
+    {
+      id: 'pay-002',
+      recipientCode: 'V002',
+      companyName: 'ネクストロジ株式会社',
+      recipientName: '請求担当 佐藤',
+      bankName: '三井住友銀行',
+      bankBranch: '銀座支店',
+      bankAccountNumber: '当座 7654321',
+      isActive: true,
+      allocationTargets: [
+        { id: 'pay-002-logi', name: '物流センター' },
+        { id: 'pay-002-west', name: '西日本支店' },
+      ],
+    },
+    {
+      id: 'pay-003',
+      recipientCode: 'V003',
+      companyName: '株式会社フロンティアデザイン',
+      recipientName: '代表取締役 渡辺',
+      bankName: 'みずほ銀行',
+      bankBranch: '丸の内支店',
+      bankAccountNumber: '普通 9876543',
+      isActive: true,
+      allocationTargets: [
+        { id: 'pay-003-cre', name: 'クリエイティブ事業部' },
+        { id: 'pay-003-lab', name: 'R&Dラボ' },
+      ],
+    },
+  ];
 
   return {
     jobs,

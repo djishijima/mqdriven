@@ -3,7 +3,7 @@ import ApplicationList from '../ApplicationList.tsx';
 import ApplicationDetailModal from '../ApplicationDetailModal.tsx';
 import { getApplications, getApplicationCodes, approveApplication, rejectApplication, resolveUserSession } from '../../services/dataService.ts';
 import { normalizeFormCode } from '../../services/normalizeFormCode.ts';
-import { ApplicationWithDetails, ApplicationCode, EmployeeUser, Toast, Customer, AccountItem, Job, PurchaseOrder, Department, AllocationDivision } from '../../types.ts';
+import { ApplicationWithDetails, ApplicationCode, EmployeeUser, Toast, Customer, AccountItem, Department, AllocationDivision, Project, PaymentRecipient } from '../../types.ts';
 import { Loader, AlertTriangle } from '../Icons.tsx';
 import { getSupabase, hasSupabaseCredentials } from '../../services/supabaseClient.ts';
 
@@ -23,11 +23,11 @@ interface ApprovalWorkflowPageProps {
     addToast: (message: string, type: Toast['type']) => void;
     customers?: Customer[];
     accountItems?: AccountItem[];
-    jobs?: Job[];
-    purchaseOrders?: PurchaseOrder[];
+    projects?: Project[];
     departments?: Department[];
     isAIOff?: boolean;
     allocationDivisions?: AllocationDivision[];
+    paymentRecipients?: PaymentRecipient[];
     onSuccess?: () => void; // Added for form submission success callback
     onRefreshData?: () => void; // Added for list data refresh
 }
@@ -40,7 +40,7 @@ const TABS_CONFIG = {
 
 const USER_LOAD_ERROR_CODE = 'APPROVAL-USER-LOAD-001';
 
-const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser, view, formCode, searchTerm, addToast, customers, accountItems, jobs, purchaseOrders, departments, isAIOff, allocationDivisions, onSuccess, onRefreshData }) => {
+const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser, view, formCode, searchTerm, addToast, customers, accountItems, projects, departments, isAIOff, allocationDivisions, paymentRecipients, onSuccess, onRefreshData }) => {
     // State for list view
     const [applications, setApplications] = useState<ApplicationWithDetails[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -304,7 +304,7 @@ const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser
         };
 
         switch(effectiveFormCode) {
-            case 'EXP': return <ExpenseReimbursementForm {...formProps} customers={customers || []} accountItems={accountItems || []} jobs={jobs || []} purchaseOrders={purchaseOrders || []} departments={departments || []} allocationDivisions={allocationDivisions || []} />;
+            case 'EXP': return <ExpenseReimbursementForm {...formProps} customers={customers || []} accountItems={accountItems || []} projects={projects || []} departments={departments || []} allocationDivisions={allocationDivisions || []} paymentRecipients={paymentRecipients || []} />;
             case 'TRP': return <TransportExpenseForm {...formProps} accountItems={accountItems || []} allocationDivisions={allocationDivisions || []} />;
             case 'LEV': return <LeaveApplicationForm {...formProps} />;
             case 'APL': return <ApprovalForm {...formProps} />;

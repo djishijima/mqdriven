@@ -146,13 +146,17 @@ const PaymentRecipientsManager: React.FC<MasterManagementPageProps> = ({ payment
                  <button onClick={() => handleOpenModal(null)} className="flex items-center gap-2 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg" aria-label="新規支払先を追加"><PlusCircle className="w-5 h-5"/>新規追加</button>
              </div>
              <table className="w-full text-base">
-                 <thead className="text-sm bg-slate-50 dark:bg-slate-700"><tr>{['コード', '会社名', '受取人名', '操作'].map(h => <th key={h} className="px-6 py-3 text-left font-medium">{h}</th>)}</tr></thead>
+                 <thead className="text-sm bg-slate-50 dark:bg-slate-700"><tr>{['コード', '会社名', '受取人名', '銀行情報', '有効', '操作'].map(h => <th key={h} className="px-6 py-3 text-left font-medium">{h}</th>)}</tr></thead>
                  <tbody>
                     {paymentRecipients.map(item => (
                         <tr key={item.id} className="border-b dark:border-slate-700">
                             <td className="px-6 py-4">{item.recipientCode}</td>
                             <td className="px-6 py-4 font-medium">{item.companyName}</td>
                             <td className="px-6 py-4">{item.recipientName}</td>
+                            <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">
+                                {[item.bankName, item.bankBranch, item.bankAccountNumber].filter(Boolean).join(' / ') || '---'}
+                            </td>
+                            <td className="px-6 py-4">{item.isActive === false ? '無効' : '有効'}</td>
                             <td className="px-6 py-4 flex items-center gap-2">
                                 <button onClick={() => handleOpenModal(item)} className="p-1" aria-label={`支払先「${item.companyName || item.recipientName}」を編集`}><Pencil className="w-5 h-5"/></button>
                                 <button onClick={() => handleDelete(item)} className="p-1" aria-label={`支払先「${item.companyName || item.recipientName}」を削除`}><Trash2 className="w-5 h-5 text-red-500"/></button>

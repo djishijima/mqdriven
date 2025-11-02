@@ -138,6 +138,7 @@ export interface Job {
   projectId?: string; // New: Link to project
   projectName?: string; // New: Derived from project for convenience
   userId?: string;
+  customerId?: string;
 }
 
 export interface JournalEntry {
@@ -214,6 +215,7 @@ export interface Customer {
   infoSalesIdeas?: string;
   customerContactInfo?: string; // for mailto
   aiAnalysis?: CompanyAnalysis | null;
+  isActive?: boolean;
 }
 
 export interface SortConfig {
@@ -415,6 +417,7 @@ export interface Project {
   attachments?: ProjectAttachment[];
   relatedEstimates?: Partial<Estimate>[];
   relatedJobs?: Partial<Job>[];
+  isActive?: boolean;
 }
 
 export interface Lead {
@@ -509,6 +512,16 @@ export interface AccountItem {
     sortOrder: number;
     createdAt: string;
     updatedAt: string;
+    mqCode: MQCode;
+}
+
+export interface MQCode {
+    p: string;
+    v: string;
+    m: string;
+    q: string;
+    f: string;
+    g: string;
 }
 
 export interface PurchaseOrder {
@@ -639,6 +652,11 @@ export interface PaymentRecipient {
   recipientCode: string;
   companyName: string | null;
   recipientName: string | null;
+  bankName?: string | null;
+  bankBranch?: string | null;
+  bankAccountNumber?: string | null;
+  isActive?: boolean;
+  allocationTargets?: { id: string; name: string }[];
 }
 
 export interface Department {

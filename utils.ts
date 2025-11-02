@@ -115,6 +115,27 @@ E-mail：sales.system@mqprint.co.jp
     }
 };
 
+const KATAKANA_START = 0x30a1;
+const KATAKANA_END = 0x30f6;
+
+export const normalizeSearchText = (value: string): string => {
+  if (!value) return '';
+  const normalized = value
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/\s+/g, '');
+  let hiragana = '';
+  for (const ch of normalized) {
+    const code = ch.charCodeAt(0);
+    if (code >= KATAKANA_START && code <= KATAKANA_END) {
+      hiragana += String.fromCharCode(code - 0x60);
+    } else {
+      hiragana += ch;
+    }
+  }
+  return hiragana;
+};
+
 export const generateMultipagePdf = async (elementId: string, fileName: string): Promise<void> => {
     const input = document.getElementById(elementId);
     if (!input) {

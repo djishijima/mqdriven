@@ -258,6 +258,7 @@ let projects: Project[] = [
       (est) => est.customerName === '株式会社ネオプリント'
     ),
     relatedJobs: demoState.jobs.filter((job) => job.clientName === '株式会社ネオプリント'),
+    isActive: true,
   },
   {
     id: uuidv4(),
@@ -273,6 +274,7 @@ let projects: Project[] = [
     attachments: [],
     relatedEstimates: [],
     relatedJobs: [],
+    isActive: true,
   },
 ];
 let allocationDivisions: AllocationDivision[] = [
@@ -702,7 +704,10 @@ export const getActiveAccountItems = async (): Promise<AccountItem[]> => deepClo
 export const saveAccountItem = async (item: Partial<AccountItem>): Promise<AccountItem> => {
     if (item.id) {
       const existing = findById(demoState.accountItems, item.id, '勘定科目');
-      Object.assign(existing, item, { updatedAt: new Date().toISOString() });
+      if (item.mqCode) {
+        existing.mqCode = { ...existing.mqCode, ...item.mqCode };
+      }
+      Object.assign(existing, { ...item, mqCode: existing.mqCode, updatedAt: new Date().toISOString() });
       return deepClone(existing);
     }
     const now = new Date().toISOString();
@@ -715,6 +720,14 @@ export const saveAccountItem = async (item: Partial<AccountItem>): Promise<Accou
       sortOrder: item.sortOrder ?? demoState.accountItems.length,
       createdAt: now,
       updatedAt: now,
+      mqCode: {
+        p: item.mqCode?.p ?? '',
+        v: item.mqCode?.v ?? '',
+        m: item.mqCode?.m ?? '',
+        q: item.mqCode?.q ?? '',
+        f: item.mqCode?.f ?? '',
+        g: item.mqCode?.g ?? '',
+      },
     };
     demoState.accountItems.push(newItem);
     return deepClone(newItem);
@@ -1102,7 +1115,10 @@ export const getPaymentRecipients = async (): Promise<PaymentRecipient[]> => dee
 export const savePaymentRecipient = async (recipient: Partial<PaymentRecipient>): Promise<PaymentRecipient> => {
     if (recipient.id) {
         const existing = findById(demoState.paymentRecipients, recipient.id, '支払先');
-        Object.assign(existing, recipient);
+        if (recipient.allocationTargets) {
+          existing.allocationTargets = recipient.allocationTargets.map(target => ({ ...target, id: target.id ?? uuidv4() }));
+        }
+        Object.assign(existing, recipient, { isActive: recipient.isActive ?? existing.isActive ?? true });
         return deepClone(existing);
     }
     const newRecipient: PaymentRecipient = {
@@ -1110,6 +1126,11 @@ export const savePaymentRecipient = async (recipient: Partial<PaymentRecipient>)
         recipientCode: recipient.recipientCode ?? `V${String(demoState.paymentRecipients.length + 1).padStart(3, '0')}`,
         companyName: recipient.companyName ?? '',
         recipientName: recipient.recipientName ?? '',
+        bankName: recipient.bankName ?? '',
+        bankBranch: recipient.bankBranch ?? '',
+        bankAccountNumber: recipient.bankAccountNumber ?? '',
+        isActive: recipient.isActive ?? true,
+        allocationTargets: (recipient.allocationTargets ?? []).map(target => ({ ...target, id: target.id ?? uuidv4() })),
     };
     demoState.paymentRecipients.push(newRecipient);
     return deepClone(newRecipient);

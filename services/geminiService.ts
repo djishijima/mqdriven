@@ -11,19 +11,12 @@ const NEXT_PUBLIC_AI_OFF = getEnvValue('NEXT_PUBLIC_AI_OFF') === '1';
 
 const API_KEY = getEnvValue('API_KEY') ?? getEnvValue('GEMINI_API_KEY');
 
-<<<<<<< ours
-if (!API_KEY && !NEXT_PUBLIC_AI_OFF) {
-  console.warn("API_KEY environment variable not set. AI functions might be unavailable.");
-=======
 if (!API_KEY) {
   if (NEXT_PUBLIC_AI_OFF) {
     console.info('AI機能は NEXT_PUBLIC_AI_OFF によって無効化されています。');
   } else {
-    console.error(
-      'Gemini API キーが設定されていません。環境変数 API_KEY または GEMINI_API_KEY に有効なキーを設定してください。'
-    );
+    console.warn('Gemini API キーが設定されていません。環境変数 API_KEY または GEMINI_API_KEY に有効なキーを設定してください。');
   }
->>>>>>> theirs
 }
 
 const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;

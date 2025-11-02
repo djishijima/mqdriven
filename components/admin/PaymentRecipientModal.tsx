@@ -9,7 +9,10 @@ interface PaymentRecipientModalProps {
 }
 
 const PaymentRecipientModal: React.FC<PaymentRecipientModalProps> = ({ item, onClose, onSave }) => {
-  const [formData, setFormData] = useState<Partial<PaymentRecipient>>(item || { recipientCode: '', companyName: '', recipientName: '' });
+  const [formData, setFormData] = useState<Partial<PaymentRecipient>>(item || { recipientCode: '', companyName: '', recipientName: '', bankName: '', bankBranch: '', bankAccountNumber: '', isActive: true });
+  const [allocationTargetsText, setAllocationTargetsText] = useState<string>(() =>
+    (item?.allocationTargets ?? []).map(target => target.name).join('\n')
+  );
   const [isSaving, setIsSaving] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -17,10 +20,30 @@ const PaymentRecipientModal: React.FC<PaymentRecipientModalProps> = ({ item, onC
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+    setFormData(prev => ({ ...prev, [name]: checked }));
+  };
+
+  const normalizeAllocationTargets = (): PaymentRecipient['allocationTargets'] => {
+    const lines = allocationTargetsText
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(Boolean);
+    const existingTargets = item?.allocationTargets ?? [];
+    return lines.map((name, index) => ({
+      id: existingTargets[index]?.id,
+      name,
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    await onSave(formData);
+    await onSave({
+      ...formData,
+      allocationTargets: normalizeAllocationTargets(),
+    });
     setIsSaving(false);
   };
 
@@ -46,6 +69,32 @@ const PaymentRecipientModal: React.FC<PaymentRecipientModalProps> = ({ item, onC
           <div>
             <label htmlFor="recipientName" className={labelClass}>受取人名</label>
             <input id="recipientName" name="recipientName" type="text" value={formData.recipientName || ''} onChange={handleChange} className={inputClass} />
+          </div>
+          <div>
+            <label htmlFor="bankName" className={labelClass}>金融機関名</label>
+            <input id="bankName" name="bankName" type="text" value={formData.bankName || ''} onChange={handleChange} className={inputClass} />
+          </div>
+          <div>
+            <label htmlFor="bankBranch" className={labelClass}>支店名</label>
+            <input id="bankBranch" name="bankBranch" type="text" value={formData.bankBranch || ''} onChange={handleChange} className={inputClass} />
+          </div>
+          <div>
+            <label htmlFor="bankAccountNumber" className={labelClass}>口座番号</label>
+            <input id="bankAccountNumber" name="bankAccountNumber" type="text" value={formData.bankAccountNumber || ''} onChange={handleChange} className={inputClass} />
+          </div>
+          <div>
+            <label htmlFor="allocationTargets" className={labelClass}>振分先候補（1行1件）</label>
+            <textarea
+              id="allocationTargets"
+              value={allocationTargetsText}
+              onChange={event => setAllocationTargetsText(event.target.value)}
+              className={`${inputClass} h-24 resize-y`}
+              placeholder="本社 経理課\n営業サポートチーム"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <input id="isActive" name="isActive" type="checkbox" checked={formData.isActive !== false} onChange={handleCheckboxChange} className="h-4 w-4 rounded" />
+            <label htmlFor="isActive" className="text-sm">有効</label>
           </div>
         </div>
         <div className="flex justify-end gap-4 p-6 border-t">

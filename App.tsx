@@ -294,13 +294,79 @@ const App: React.FC = () => {
             setShowSetupModal(true);
         };
 
-        const initializeAuth = async () => {
-            if (!credentialsConfigured) {
-                handleAuthFailure('Supabaseの認証情報が設定されていません。supabaseCredentials.ts または環境変数を確認してください。');
-                setAuthLoading(false);
-                return;
-            }
+        if (!credentialsConfigured) {
+            const initializeDemoAuth = async () => {
+                try {
+                    const demoUsers = await dataService.getUsers();
+                    if (!isMounted) {
+                        return;
+                    }
+                    const demoUser = demoUsers[0] ?? {
+                        id: 'demo-user',
+                        name: 'デモユーザー',
+                        email: 'demo@example.com',
+                        role: 'admin' as const,
+                        department: null,
+                        title: null,
+                        createdAt: new Date().toISOString(),
+                        canUseAnythingAnalysis: true,
+                    };
+                    const now = new Date().toISOString();
+                    const demoSession = {
+                        access_token: 'demo-access-token',
+                        refresh_token: 'demo-refresh-token',
+                        expires_in: 3600,
+                        expires_at: Math.floor(Date.now() / 1000) + 3600,
+                        token_type: 'bearer',
+                        user: {
+                            id: demoUser.id,
+                            aud: 'authenticated',
+                            app_metadata: { provider: 'demo', providers: ['demo'] },
+                            user_metadata: {
+                                name: demoUser.name,
+                                email: demoUser.email,
+                            },
+                            created_at: now,
+                            email: demoUser.email,
+                            email_confirmed_at: now,
+                            last_sign_in_at: now,
+                            phone: '',
+                            phone_confirmed_at: null,
+                            role: 'authenticated',
+                            identities: [],
+                            factors: [],
+                        },
+                        provider_token: null,
+                        provider_refresh_token: null,
+                    } as Session;
+                    setSession(demoSession);
+                    setCurrentUser(demoUser);
+                    setError(null);
+                    setShowSetupModal(false);
+                } catch (demoError) {
+                    if (!isMounted) {
+                        return;
+                    }
+                    console.error('Demo auth initialization failed:', demoError);
+                    setSession(null);
+                    setCurrentUser(null);
+                    setError('デモデータの読み込みに失敗しました。');
+                    setShowSetupModal(true);
+                } finally {
+                    if (isMounted) {
+                        setAuthLoading(false);
+                    }
+                }
+            };
 
+            initializeDemoAuth();
+
+            return () => {
+                isMounted = false;
+            };
+        }
+
+        const initializeAuth = async () => {
             try {
                 const supabaseClient = getSupabase();
                 const { data, error } = await withTimeout(supabaseClient.auth.getSession(), AUTH_TIMEOUT_MS);
@@ -335,12 +401,6 @@ const App: React.FC = () => {
         };
 
         initializeAuth();
-
-        if (!credentialsConfigured) {
-            return () => {
-                isMounted = false;
-            };
-        }
 
         const supabaseClient = getSupabase();
         const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, nextSession) => {
@@ -587,15 +647,15 @@ const App: React.FC = () => {
                 return <ApprovalWorkflowPage
                     view="form"
                     formCode={formCode}
-                    currentUser={currentUser} 
+                    currentUser={currentUser}
                     addToast={addToast}
                     isAIOff={isAIOff}
                     customers={customers}
                     accountItems={accountItems}
-                    jobs={jobs}
-                    purchaseOrders={purchaseOrders}
+                    projects={projects}
                     departments={departments}
                     allocationDivisions={allocationDivisions}
+                    paymentRecipients={paymentRecipients}
                     onSuccess={() => { setCurrentPage('approval_list'); fetchData(); }}
                 />;
             

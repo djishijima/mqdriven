@@ -12,6 +12,36 @@ const resolveCredential = (key: string, fallback: string): string => {
 
 const SUPABASE_URL = resolveCredential('SUPABASE_URL', FALLBACK_URL);
 const SUPABASE_KEY = resolveCredential('SUPABASE_KEY', FALLBACK_KEY);
+const FORCE_DEMO_MODE = getEnvValue('FORCE_DEMO_MODE');
+
+const isTruthy = (value: string | null | undefined): boolean => {
+    if (!value) return false;
+    const normalized = value.trim().toLowerCase();
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
+};
+
+const isForceDemoEnabled = (): boolean => {
+    if (typeof window !== 'undefined') {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            if (isTruthy(params.get('demo')) || isTruthy(params.get('forceDemo'))) {
+                return true;
+            }
+            const stored = window.localStorage?.getItem('mq.forceDemoMode');
+            if (isTruthy(stored)) {
+                return true;
+            }
+        } catch (error) {
+            console.warn('Failed to resolve demo override from location/localStorage:', error);
+        }
+    }
+
+    if (isTruthy(FORCE_DEMO_MODE)) {
+        return true;
+    }
+
+    return false;
+};
 
 const PLACEHOLDER_PATTERNS = [
     /ここに/i,
@@ -25,7 +55,7 @@ const isPlaceholder = (value: string | undefined | null): boolean => {
     return PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(value));
 };
 
-const credentialsConfigured = !isPlaceholder(SUPABASE_URL) && !isPlaceholder(SUPABASE_KEY);
+const credentialsConfigured = !isForceDemoEnabled() && !isPlaceholder(SUPABASE_URL) && !isPlaceholder(SUPABASE_KEY);
 
 let supabaseInstance: SupabaseClient | null = null;
 
