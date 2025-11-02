@@ -280,7 +280,11 @@ const App: React.FC = () => {
         const AUTH_TIMEOUT_MS = 8000;
 
         const handleAuthFailure = (message: string, cause?: unknown) => {
-            console.error('Supabase auth initialization failed:', cause);
+            if (typeof cause !== 'undefined') {
+                console.error('Supabase auth initialization failed:', cause);
+            } else {
+                console.error('Supabase auth initialization failed:', message);
+            }
             if (!isMounted) {
                 return;
             }
