@@ -5,7 +5,7 @@ import { getApplications, getApplicationCodes, approveApplication, rejectApplica
 import { normalizeFormCode } from '../../services/normalizeFormCode.ts';
 import { ApplicationWithDetails, ApplicationCode, EmployeeUser, Toast, Customer, AccountItem, Job, PurchaseOrder, Department, AllocationDivision } from '../../types.ts';
 import { Loader, AlertTriangle } from '../Icons.tsx';
-import { hasSupabaseCredentials, supabase } from '../../services/supabaseClient.ts';
+import { getSupabase, hasSupabaseCredentials } from '../../services/supabaseClient.ts';
 
 // Form components
 import ExpenseReimbursementForm from '../forms/ExpenseReimbursementForm.tsx';
@@ -75,7 +75,8 @@ const ApprovalWorkflowPage: React.FC<ApprovalWorkflowPageProps> = ({ currentUser
         const fetchUser = async () => {
             setIsUserLoading(true);
             try {
-                const { data, error } = await supabase.auth.getSession();
+                const supabaseClient = getSupabase();
+                const { data, error } = await supabaseClient.auth.getSession();
                 if (!isMounted) return;
                 if (error || !data.session?.user) {
                     setResolvedUser(null);

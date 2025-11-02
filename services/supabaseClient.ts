@@ -1,30 +1,54 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { getEnvValue } from '../utils.ts';
+import { SUPABASE_KEY as FALLBACK_KEY, SUPABASE_URL as FALLBACK_URL } from '../supabaseCredentials.ts';
 
-// 認証情報をこのファイルに直接定義
-const SUPABASE_URL = 'https://rwjhpfghhgstvplmggks.supabase.co'; 
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3amhwZmdoaGdzdHZwbG1nZ2tzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3MDgzNDYsImV4cCI6MjA3NDI4NDM0Nn0.RfCRooN6YVTHJ2Mw-xFCWus3wUVMLkJCLSitB8TNiIo';
+const resolveCredential = (key: string, fallback: string): string => {
+    const envValue =
+        getEnvValue(key) ??
+        (key === 'SUPABASE_URL' ? getEnvValue('SUPABASE_PROJECT_URL') : undefined) ??
+        (key === 'SUPABASE_KEY' ? getEnvValue('SUPABASE_ANON_KEY') : undefined);
+    return envValue ?? fallback ?? '';
+};
 
-// Supabaseクライアントを一度だけ初期化してエクスポート
-export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true, // Essential for OAuth callback
-        flowType: 'pkce',         // Recommended for OAuth
-    },
-});
+const SUPABASE_URL = resolveCredential('SUPABASE_URL', FALLBACK_URL);
+const SUPABASE_KEY = resolveCredential('SUPABASE_KEY', FALLBACK_KEY);
 
-// 既存コードとの互換性のためにgetSupabaseもエクスポート
+const PLACEHOLDER_PATTERNS = [
+    /ここに/i,
+    /example\.supabase\.co/i,
+    /your[-_ ]?supabase/i,
+    /^$/,
+];
+
+const isPlaceholder = (value: string | undefined | null): boolean => {
+    if (!value) return true;
+    return PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(value));
+};
+
+const credentialsConfigured = !isPlaceholder(SUPABASE_URL) && !isPlaceholder(SUPABASE_KEY);
+
+let supabaseInstance: SupabaseClient | null = null;
+
+if (credentialsConfigured) {
+    supabaseInstance = createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+            flowType: 'pkce',
+        },
+    });
+} else if (typeof console !== 'undefined' && console.warn) {
+    console.warn('Supabase credentials are not configured. Running in demo mode.');
+}
+
+export const supabase = supabaseInstance;
+
 export const getSupabase = (): SupabaseClient => {
-    if (!supabase) {
-        throw new Error("Supabase client is not initialized. Please configure credentials in services/supabaseClient.ts");
+    if (!supabaseInstance) {
+        throw new Error('Supabase client is not initialized. Please configure credentials in supabaseCredentials.ts or environment variables.');
     }
-    return supabase;
+    return supabaseInstance;
 };
 
-// 接続情報が設定されているか確認する関数
-export const hasSupabaseCredentials = (): boolean => {
-    const isUrlPlaceholder = SUPABASE_URL.includes('ここにURLを貼り付け');
-    const isKeyPlaceholder = SUPABASE_KEY.includes('ここにキーを貼り付け');
-    return !!(SUPABASE_URL && SUPABASE_KEY && !isUrlPlaceholder && !isKeyPlaceholder);
-};
+export const hasSupabaseCredentials = (): boolean => credentialsConfigured;

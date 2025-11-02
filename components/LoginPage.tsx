@@ -1,10 +1,18 @@
-import React from 'react';
-import { supabase } from '../services/supabaseClient';
+import React, { useMemo } from 'react';
+import { getSupabase, hasSupabaseCredentials } from '../services/supabaseClient.ts';
 import { Package, GoogleIcon } from './Icons';
 
 const LoginPage: React.FC = () => {
+  const isSupabaseConfigured = useMemo(() => hasSupabaseCredentials(), []);
+
   const handleLoginWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
+    if (!isSupabaseConfigured) {
+      alert('Supabaseの認証情報が設定されていません。管理者に連絡してください。');
+      return;
+    }
+
+    const supabaseClient = getSupabase();
+    const { error } = await supabaseClient.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: window.location.origin,
@@ -30,11 +38,17 @@ const LoginPage: React.FC = () => {
         <div>
           <button
             onClick={handleLoginWithGoogle}
-            className="w-full flex justify-center items-center gap-3 px-4 py-3 font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-800 focus:ring-blue-500 dark:bg-slate-700 dark:text-white dark:border-slate-600 dark:hover:bg-slate-600 transition-colors"
+            disabled={!isSupabaseConfigured}
+            className="w-full flex justify-center items-center gap-3 px-4 py-3 font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-800 focus:ring-blue-500 dark:bg-slate-700 dark:text-white dark:border-slate-600 dark:hover:bg-slate-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <GoogleIcon className="w-5 h-5" />
             Googleでログイン
           </button>
+          {!isSupabaseConfigured && (
+            <p className="mt-3 text-sm text-red-600 text-center">
+              Supabaseの接続情報が未設定のため、デモモードでご利用ください。
+            </p>
+          )}
         </div>
       </div>
     </div>

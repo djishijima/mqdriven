@@ -2,7 +2,7 @@ import { normalizeFormCode } from "./normalizeFormCode";
 import { v4 as uuidv4 } from 'uuid';
 import type { PostgrestError, User as SupabaseAuthUser } from '@supabase/supabase-js';
 import { createDemoDataState, DemoDataState } from './demoData.ts';
-import { supabase, hasSupabaseCredentials } from './supabaseClient.ts';
+import { getSupabase, hasSupabaseCredentials } from './supabaseClient.ts';
 import {
   EmployeeUser,
   Job,
@@ -120,7 +120,9 @@ const fetchSupabaseEmployeeUser = async (userId: string): Promise<EmployeeUser |
     return null;
   }
 
-  const { data, error } = await supabase
+  const supabaseClient = getSupabase();
+
+  const { data, error } = await supabaseClient
     .from<SupabaseEmployeeViewRow>('v_employees_active')
     .select(SUPABASE_VIEW_COLUMNS)
     .eq('user_id', userId)
@@ -141,6 +143,8 @@ const ensureSupabaseEmployeeUser = async (
     return null;
   }
 
+  const supabaseClient = getSupabase();
+
   const displayName =
     authUser.user_metadata?.full_name?.trim() ||
     authUser.user_metadata?.name?.trim?.() ||
@@ -148,7 +152,7 @@ const ensureSupabaseEmployeeUser = async (
     'ゲストユーザー';
 
   try {
-    const { data: userRow, error: userError } = await supabase
+    const { data: userRow, error: userError } = await supabaseClient
       .from<SupabaseUserRow>('users')
       .select('id, name, email, role, can_use_anything_analysis, created_at')
       .eq('id', authUser.id)
@@ -161,7 +165,7 @@ const ensureSupabaseEmployeeUser = async (
     let ensuredUser = userRow;
 
     if (!ensuredUser) {
-      const { data: insertedUser, error: insertError } = await supabase
+      const { data: insertedUser, error: insertError } = await supabaseClient
         .from<SupabaseUserRow>('users')
         .insert({
           id: authUser.id,
@@ -180,7 +184,7 @@ const ensureSupabaseEmployeeUser = async (
       ensuredUser = insertedUser ?? userRow ?? null;
     }
 
-    const { data: employeeRow, error: employeeError } = await supabase
+    const { data: employeeRow, error: employeeError } = await supabaseClient
       .from<SupabaseEmployeeRow>('employees')
       .select('id, user_id, name, department, title, created_at')
       .eq('user_id', authUser.id)
@@ -191,7 +195,7 @@ const ensureSupabaseEmployeeUser = async (
     }
 
     if (!employeeRow) {
-      const { error: insertEmployeeError } = await supabase
+      const { error: insertEmployeeError } = await supabaseClient
         .from('employees')
         .insert({
           user_id: authUser.id,
@@ -373,7 +377,9 @@ export const resolveUserSession = async (authUser: MinimalAuthUser): Promise<Emp
 
 export const getUsers = async (): Promise<EmployeeUser[]> => {
   if (hasSupabaseCredentials()) {
-    const { data, error } = await supabase
+    const supabaseClient = getSupabase();
+
+    const { data, error } = await supabaseClient
       .from<SupabaseEmployeeViewRow>('v_employees_active')
       .select(SUPABASE_VIEW_COLUMNS)
       .order('name', { ascending: true });
@@ -428,6 +434,7 @@ export const addUser = async (input: {
 
 export const updateUser = async (id: string, updates: Partial<EmployeeUser>): Promise<EmployeeUser> => {
   if (hasSupabaseCredentials()) {
+    const supabaseClient = getSupabase();
     const userUpdates: Partial<SupabaseUserRow> = {};
     if (Object.prototype.hasOwnProperty.call(updates, 'name')) {
       userUpdates.name = updates.name ?? null;
@@ -443,7 +450,7 @@ export const updateUser = async (id: string, updates: Partial<EmployeeUser>): Pr
     }
 
     if (Object.keys(userUpdates).length > 0) {
-      const { error: userError } = await supabase
+      const { error: userError } = await supabaseClient
         .from('users')
         .update(userUpdates)
         .eq('id', id);
@@ -465,7 +472,7 @@ export const updateUser = async (id: string, updates: Partial<EmployeeUser>): Pr
     }
 
     if (Object.keys(employeeUpdates).length > 0) {
-      const { data: employeeRow, error: employeeSelectError } = await supabase
+      const { data: employeeRow, error: employeeSelectError } = await supabaseClient
         .from<SupabaseEmployeeRow>('employees')
         .select('id')
         .eq('user_id', id)
@@ -476,7 +483,7 @@ export const updateUser = async (id: string, updates: Partial<EmployeeUser>): Pr
       }
 
       if (employeeRow) {
-        const { error: employeeUpdateError } = await supabase
+        const { error: employeeUpdateError } = await supabaseClient
           .from('employees')
           .update(employeeUpdates)
           .eq('id', employeeRow.id);
@@ -485,7 +492,7 @@ export const updateUser = async (id: string, updates: Partial<EmployeeUser>): Pr
           throw employeeUpdateError;
         }
       } else {
-        const { error: employeeInsertError } = await supabase
+        const { error: employeeInsertError } = await supabaseClient
           .from('employees')
           .insert({ user_id: id, ...employeeUpdates });
 
@@ -515,7 +522,8 @@ export const updateUser = async (id: string, updates: Partial<EmployeeUser>): Pr
 
 export const deleteUser = async (id: string): Promise<void> => {
   if (hasSupabaseCredentials()) {
-    const { error: employeeError } = await supabase
+    const supabaseClient = getSupabase();
+    const { error: employeeError } = await supabaseClient
       .from('employees')
       .update({ active: false })
       .eq('user_id', id);

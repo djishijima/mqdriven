@@ -50,7 +50,7 @@ import BugReportModal from './components/BugReportModal.tsx';
 import * as dataService from './services/dataService.ts';
 import { normalizeFormCode } from './services/normalizeFormCode.ts';
 import * as geminiService from './services/geminiService.ts';
-import { supabase, hasSupabaseCredentials } from './services/supabaseClient.ts';
+import { getSupabase, hasSupabaseCredentials } from './services/supabaseClient.ts';
 import { Session } from '@supabase/supabase-js';
 import { getEnvValue } from './utils.ts';
 
@@ -108,6 +108,21 @@ const PAGE_TITLES: Record<Page, string> = {
     admin_master_management: 'マスタ管理',
     admin_bug_reports: '改善要望一覧',
     settings: '設定',
+};
+
+const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+    return new Promise<T>((resolve, reject) => {
+        const timeoutId = window.setTimeout(() => reject(new Error('timeout')), timeoutMs);
+        promise
+            .then((value) => {
+                clearTimeout(timeoutId);
+                resolve(value);
+            })
+            .catch((error) => {
+                clearTimeout(timeoutId);
+                reject(error);
+            });
+    });
 };
 
 const GlobalErrorBanner: React.FC<{ error: string; onRetry: () => void; onShowSetup: () => void; }> = ({ error, onRetry, onShowSetup }) => (
@@ -280,14 +295,6 @@ const App: React.FC = () => {
             }
         };
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timeoutId = window.setTimeout(() => reject(new Error("timeout")), timeoutMs);
-    promise.then(v => { clearTimeout(timeoutId); resolve(v); })
-           .catch(e => { clearTimeout(timeoutId); reject(e); });
-  });
-}
-
         const initializeAuth = async () => {
             if (!credentialsConfigured) {
                 await activateDemoMode();
@@ -298,23 +305,13 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
             }
 
             try {
-                const { data, error } = await withTimeout(supabase.auth.getSession(), AUTH_TIMEOUT_MS);
+                const supabaseClient = getSupabase();
+                const { data, error } = await withTimeout(supabaseClient.auth.getSession(), AUTH_TIMEOUT_MS);
                 if (!isMounted) return;
 
                 if (error) {
                     throw error;
                 }
-
-/* patched */
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timeoutId = window.setTimeout(() => {
-      reject(new Error("timeout"));
-    }, timeoutMs);
-    promise.then(v => { clearTimeout(timeoutId); resolve(v); })
-           .catch(e => { clearTimeout(timeoutId); reject(e); });
-  });
-}
 
                 const sessionData = data.session ?? null;
                 setSession(sessionData);
@@ -345,7 +342,8 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
             };
         }
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+        const supabaseClient = getSupabase();
+        const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((_event, nextSession) => {
             if (!isMounted) return;
             setSession(nextSession);
             if (nextSession) {
@@ -380,7 +378,8 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
             addToast('デモモードではサインアウトは利用できません。', 'info');
             return;
         }
-        await supabase.auth.signOut();
+        const supabaseClient = getSupabase();
+        await supabaseClient.auth.signOut();
         setCurrentUser(null);
         setSession(null);
     }, [addToast, isDemoMode]);
